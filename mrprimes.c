@@ -1,5 +1,21 @@
-/* MRPrimes - a program which generates large prime numbers using the Miller-Rabin probabalistic
- * primality test implemented with the GNU Multiple Precision math library and POSIX threads */
+/* 
+MRPrimes - a program which generates large prime numbers using the Miller-Rabin probabalistic
+primality test implemented with the GNU Multiple Precision math library and POSIX threads.
+Copyright 2012 Evan Brown
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,14 +28,9 @@
 /* create boolean type */
 enum boolean {FALSE, TRUE};
 /* set constants */
-enum constants {BASE = 10, THREAD_STACKSIZE = 1024, USECS_PER_SEC = 1000000};
+enum constants {BASE = 10, NUM_OFFSETS = 10, THREAD_STACKSIZE = 1024, USECS_PER_SEC = 1000000};
+static const char offset_primes[] = {3, 5, 7, 11, 13, 17, 19, 23, 27, 29};
 #define VERSION_NUMBER_STRING "1.0"
-
-/* The following structure contains the offsets from numbers divisible by the first ten odd primes */
-struct offsets_t
-{
-	char off3, off5, off7, off11, off13, off17, off19, off23, off27, off29;
-};
 
 /* The following structure contains the necessary arguments to allow the threads to perform their function */
 struct thread_data_t
@@ -136,65 +147,53 @@ gen_start (mpz_t n, int num_digits, gmp_randstate_t random, pthread_mutex_t *ran
 
 /* This function initializes the offsets from the starting point (a random odd integer with the specified number of digits) */
 static void
-offset_init (const mpz_t startPoint, struct offsets_t *offsets)
+offset_init (const mpz_t start_point, char *offsets)
 {
-	/* First take the starting point mod each low prime, then use this value to find the offset. See readme for explanation */
-	offsets->off3 = (char)mpz_tdiv_ui(startPoint, 3);
-	offsets->off3 = (offsets->off3 + (offsets->off3 % 2) * 3) / 2;
-	
-	offsets->off5 = (char)mpz_tdiv_ui(startPoint, 5);
-	offsets->off5 = (offsets->off5 + (offsets->off5 % 2) * 5) / 2;
-	
-	offsets->off7 = (char)mpz_tdiv_ui(startPoint, 7);
-	offsets->off7 = (offsets->off7 + (offsets->off7 % 2) * 7) / 2;
-	
-	offsets->off11 = (char)mpz_tdiv_ui(startPoint, 11);
-	offsets->off11 = (offsets->off11 + (offsets->off11 % 2) * 11) / 2;
-	
-	offsets->off13 = (char)mpz_tdiv_ui(startPoint, 13);
-	offsets->off13 = (offsets->off13 + (offsets->off13 % 2) * 13) / 2;
-	
-	offsets->off17 = (char)mpz_tdiv_ui(startPoint, 17);
-	offsets->off17 = (offsets->off17 + (offsets->off17 % 2) * 17) / 2;
-	
-	offsets->off19 = (char)mpz_tdiv_ui(startPoint, 19);
-	offsets->off19 = (offsets->off19 + (offsets->off19 % 2) * 19) / 2;
-	
-	offsets->off23 = (char)mpz_tdiv_ui(startPoint, 23);
-	offsets->off23 = (offsets->off23 + (offsets->off23 % 2) * 23) / 2;
-	
-	offsets->off27 = (char)mpz_tdiv_ui(startPoint, 27);
-	offsets->off27 = (offsets->off27 + (offsets->off27 % 2) * 27) / 2;
-	
-	offsets->off29 = (char)mpz_tdiv_ui(startPoint, 29);
-	offsets->off29 = (offsets->off29 + (offsets->off29 % 2) * 29) / 2;
+	for (int i = 0; i < NUM_OFFSETS; ++i)
+	{
+		/* First take the starting point mod each low prime, then use this value to find the offset. See readme for explanation */
+		offsets[i] = (char)mpz_tdiv_ui (start_point, offset_primes[i]);
+		offsets[i] = (offsets[i] + (offsets[i] % 2) * offset_primes[i]) / 2;
+	}
 }
 
 /* This function updates the offsets after the test value has been incremented */
 static void
-update_offsets (struct offsets_t *offsets)
+update_offsets (char *offsets)
 {
-	offsets->off3 = (offsets->off3 + 1) % 3;
-	offsets->off5 = (offsets->off5 + 1) % 5;
-	offsets->off7 = (offsets->off7 + 1) % 7;
-	offsets->off11 = (offsets->off11 + 1) % 11;
-	offsets->off13 = (offsets->off13 + 1) % 13;
-	offsets->off17 = (offsets->off17 + 1) % 17;
-	offsets->off19 = (offsets->off19 + 1) % 19;
-	offsets->off23 = (offsets->off23 + 1) % 23;
-	offsets->off27 = (offsets->off27 + 1) % 27;
-	offsets->off29 = (offsets->off29 + 1) % 29;
+	for (int i = 0; i < NUM_OFFSETS; ++i)
+		offsets[i] = (offsets[i] + 1) % offset_primes[i];
 }
 
 /* This function finds the next odd number which should be tested */
 static void
-next_test (mpz_t test_value, struct offsets_t *offsets)
+next_test (mpz_t test_value, char *offsets)
 {
-	while (!offsets->off3 || !offsets->off5 || !offsets->off7 || !offsets->off11 || !offsets->off13
-		   || !offsets->off17 || !offsets->off19 || !offsets->off23 || !offsets->off27 || !offsets->off29)
+	enum boolean should_test = TRUE;
+	// set should_test to FALSE if any of the offsets is zero
+	for (int i = 0; i < NUM_OFFSETS; ++i)
+	{
+		if (!offsets[i])
+		{
+			should_test = FALSE;
+			break; // there is no need to test the rest of the offsets
+		}
+	}
+	
+	while (!should_test)
 	{
 		mpz_add_ui (test_value, test_value, 2); // next odd integer
 		update_offsets (offsets);
+		
+		// set should_test to FALSE if any of the offsets is zero
+		for (int i = 0; i < NUM_OFFSETS; ++i)
+		{
+			if (!offsets[i])
+			{
+				should_test = FALSE;
+				break; // there is no need to test the rest of the offsets
+			}
+		}
 	}
 }
 
@@ -207,22 +206,22 @@ find_prime (void *thread_args)
 	mpz_t test_value;
 	mpz_init (test_value);
 	FILE *out_file;
-	struct offsets_t offsets;
+	char offsets[NUM_OFFSETS];
 	
 	/* generate random starting position for search from the set of odd integers with the specified number of digits */
 	gen_start (test_value, data->num_digits, data->random1, &data->rand_state_mutex1);
 	
 	/* Keeping track of the offsets from odd integers divisible by low prime numbers allows for skipping the 
 	 * testing of odd numbers divisible by these low primes.  See readme for explanation of this principle. */
-	offset_init (test_value, &offsets);
-	next_test (test_value, &offsets);
+	offset_init (test_value, offsets);
+	next_test (test_value, offsets);
 	probably_prime = miller_rabin (test_value, data->precision, data->random2, &data->rand_state_mutex2);
 	
 	while (!probably_prime)
 	{
 		mpz_add_ui (test_value, test_value, 2); // next odd integer
-		update_offsets (&offsets);
-		next_test (test_value, &offsets);
+		update_offsets (offsets);
+		next_test (test_value, offsets);
 		/* Moving the test to the end of the loop (which involves running the test once before the loop begins)
 		 * ensures that no part of the loop executes unnecessarily once a result of TRUE has already been returned. */
 		probably_prime = miller_rabin (test_value, data->precision, data->random2, &data->rand_state_mutex2);
