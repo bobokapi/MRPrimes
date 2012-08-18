@@ -29,7 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 enum boolean {FALSE, TRUE};
 /* set constants */
 enum constants {BASE = 10, NUM_OFFSETS = 10, THREAD_STACKSIZE = 1024, USECS_PER_SEC = 1000000};
-static const char offset_primes[] = {3, 5, 7, 11, 13, 17, 19, 23, 27, 29};
+static const char OFFSET_PRIMES[] = {3, 5, 7, 11, 13, 17, 19, 23, 27, 29};
 #define VERSION_NUMBER_STRING "1.0"
 
 /* The following structure contains the necessary arguments to allow the threads to perform their function */
@@ -151,9 +151,9 @@ offset_init (const mpz_t start_point, char *offsets)
 {
 	for (int i = 0; i < NUM_OFFSETS; ++i)
 	{
-		/* First take the starting point mod each low prime, then use this value to find the offset. See readme for explanation */
-		offsets[i] = (char)mpz_tdiv_ui (start_point, offset_primes[i]);
-		offsets[i] = (offsets[i] + (offsets[i] % 2) * offset_primes[i]) / 2;
+		/* First take the starting point mod each low prime, then use this value to find the offset. See readme for explanation. */
+		offsets[i] = (char)mpz_tdiv_ui (start_point, OFFSET_PRIMES[i]);
+		offsets[i] = (offsets[i] + (offsets[i] % 2) * OFFSET_PRIMES[i]) / 2;
 	}
 }
 
@@ -162,38 +162,18 @@ static void
 update_offsets (char *offsets)
 {
 	for (int i = 0; i < NUM_OFFSETS; ++i)
-		offsets[i] = (offsets[i] + 1) % offset_primes[i];
+		offsets[i] = (offsets[i] + 1) % OFFSET_PRIMES[i];
 }
 
 /* This function finds the next odd number which should be tested */
 static void
 next_test (mpz_t test_value, char *offsets)
 {
-	enum boolean should_test = TRUE;
-	// set should_test to FALSE if any of the offsets is zero
-	for (int i = 0; i < NUM_OFFSETS; ++i)
-	{
-		if (!offsets[i])
-		{
-			should_test = FALSE;
-			break; // there is no need to test the rest of the offsets
-		}
-	}
-	
-	while (!should_test)
+	/* Test if any of the offsets is equal to 0 using the strlen function */
+	while (strlen(offsets) != NUM_OFFSETS)
 	{
 		mpz_add_ui (test_value, test_value, 2); // next odd integer
 		update_offsets (offsets);
-		
-		// set should_test to FALSE if any of the offsets is zero
-		for (int i = 0; i < NUM_OFFSETS; ++i)
-		{
-			if (!offsets[i])
-			{
-				should_test = FALSE;
-				break; // there is no need to test the rest of the offsets
-			}
-		}
 	}
 }
 
@@ -206,7 +186,11 @@ find_prime (void *thread_args)
 	mpz_t test_value;
 	mpz_init (test_value);
 	FILE *out_file;
-	char offsets[NUM_OFFSETS];
+
+	/* Creating the offsets as a char array and storing a '\0' at the end allows
+	for the use of the strlen function to test if any offsets are equal to 0. */
+	char offsets[NUM_OFFSETS + 1];
+	offsets[NUM_OFFSETS] = '\0';
 	
 	/* generate random starting position for search from the set of odd integers with the specified number of digits */
 	gen_start (test_value, data->num_digits, data->random1, &data->rand_state_mutex1);
@@ -266,7 +250,7 @@ print_help ()
 	printf ("\t-o set ouput file\n");
 	printf ("\t-n set number of primes to generate\n");
 	printf ("\t-d set number of digits of primes to generate\n");
-	printf ("\t-p set rounds of Miller-Rabin test to perform\n");
+	printf ("\t-p set number of rounds of Miller-Rabin test to perform\n");
 	printf ("\t-s set random seed\n");
 	printf ("\t-a set whether to append output to an existing file\n");
 	printf ("\t-h print this help information\n");

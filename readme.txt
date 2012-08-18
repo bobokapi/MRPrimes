@@ -31,6 +31,13 @@ Usage
 
 MRPrimes can be used with a number of optional arguments.
 
+[-v] or [--version] can be used to print the version of the software along
+with licensing information.
+example: ./mrprimes -v
+
+[-h] or [--help] can be used to print a brief summary of the command options.
+example: ./mrprimes -h
+
 [-o] or [--output] can be used to specify the name of the output file.
 example: ./mrprimes -o output.txt
 This would result in the output being printed to the file "output.txt". The
