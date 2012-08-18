@@ -113,4 +113,4 @@ offset = (n mod 7 + ((n mod 7) mod 2) * 7) / 2
 or generally:
 offset = (n mod p + ((n mod p) mod 2) * p) / 2
 
-MRPrimes finds and employs the offsets for the first 10 odd primes only.
+MRPrimes finds and employs the offsets for the first 100 odd primes.

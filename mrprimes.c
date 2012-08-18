@@ -25,11 +25,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <pthread.h>
 #include "gmp.h"
 
-/* create boolean type */
+/* Create boolean type. */
 enum boolean {FALSE, TRUE};
-/* set constants */
+/* Set constants. */
 enum constants {BASE = 10, NUM_OFFSETS = 100, THREAD_STACKSIZE = 1024, USECS_PER_SEC = 1000000};
-static const char OFFSET_PRIMES[] = {     3,      5,      7,     11,     13,     17,     19,     23,     29,     31,
+static const int OFFSET_PRIMES[] = {      3,      5,      7,     11,     13,     17,     19,     23,     29,     31,
 										 37,     41,     43,     47,     53,     59,     61,     67,     71,     73,
 										 79,     83,     89,     97,    101,    103,    107,    109,    113,    127,
 										131,    137,    139,    149,    151,    157,    163,    167,    173,    179,
@@ -39,16 +39,16 @@ static const char OFFSET_PRIMES[] = {     3,      5,      7,     11,     13,    
 										359,    367,    373,    379,    383,    389,    397,    401,    409,    419,
 										421,    431,    433,    439,    443,    449,    457,    461,    463,    467,
 										479,    487,    491,    499,    503,    509,    521,    523,    541,    547};
-#define VERSION_NUMBER_STRING "1.0.1"
+#define VERSION_NUMBER_STRING "1.0.2"
 
-/* The following structure contains the necessary arguments to allow the threads to perform their function */
+/* The following structure contains the necessary arguments to allow the threads to perform their function. */
 struct thread_data_t
 {
 	const long num_digits;
 	const long precision;
 	long current_num_primes;
 	char *out_file_name_pointer;
-	/* two randstates are necessary when multithreading to ensure the same primes are found when the same seed is used */
+	/* Two randstates are necessary when multithreading to ensure the same primes are found when the same seed is used. */
 	gmp_randstate_t random1; // for generating starting points
 	gmp_randstate_t random2; // for generating random numbers for the test itself
 	pthread_mutex_t current_num_primes_mutex;
@@ -57,7 +57,7 @@ struct thread_data_t
 	pthread_mutex_t rand_state_mutex2;
 };
 
-/* This function takes the remainder of a product and assigns the result to the first parameter (mpz_t acts as a reference) */
+/* This function takes the remainder of a product and assigns the result to the first parameter (mpz_t acts as a reference). */
 static void
 mul_mod (mpz_t result, const mpz_t factor0, const mpz_t factor1, const mpz_t mod)
 {
@@ -65,11 +65,11 @@ mul_mod (mpz_t result, const mpz_t factor0, const mpz_t factor1, const mpz_t mod
 	mpz_mod (result, result, mod);
 }
 
-/* This function uses the Miller-Rabin method to test the primality of an odd integer n with precision variable k */
+/* This function uses the Miller-Rabin method to test the primality of an odd integer n with precision variable k. */
 static enum boolean
 miller_rabin (const mpz_t n, int k, gmp_randstate_t random, pthread_mutex_t *rand_state_mutex)
 {
-	/* write n - 1 as 2^s*d with d odd by factoring powers of 2 from n - 1 */
+	/* Write n - 1 as 2^s*d with d odd by factoring powers of 2 from n - 1. */
 	unsigned long s = 0;
 	mpz_t d, a, x, tmp;
 	mpz_inits (d, a, x, tmp, NULL);
@@ -85,7 +85,7 @@ miller_rabin (const mpz_t n, int k, gmp_randstate_t random, pthread_mutex_t *ran
 	{
 		unsigned long r;
 		
-		/* generate random number a in range [2, n - 2] */
+		/* Generate random number a in range [2, n - 2]. */
 		mpz_set (tmp, n); // tmp = n
 		mpz_sub_ui (tmp, tmp, 4); // tmp -= 4
 		pthread_mutex_lock (rand_state_mutex);
@@ -121,7 +121,7 @@ miller_rabin (const mpz_t n, int k, gmp_randstate_t random, pthread_mutex_t *ran
 	return TRUE;
 }
 
-/* This method generates a random integer with a certain number of digits in the parameter n to be used as a starting point */
+/* This method generates a random integer with a certain number of digits in the parameter n to be used as a starting point. */
 static void
 gen_start (mpz_t n, int num_digits, gmp_randstate_t random, pthread_mutex_t *rand_state_mutex)
 {
@@ -154,39 +154,49 @@ gen_start (mpz_t n, int num_digits, gmp_randstate_t random, pthread_mutex_t *ran
 	mpz_clear (tmp);
 }
 
-/* This function initializes the offsets from the starting point (a random odd integer with the specified number of digits) */
+/* This function initializes the offsets from the starting point (a random odd integer with the specified number of digits). */
 static void
-offset_init (const mpz_t start_point, char *offsets)
+offset_init (const mpz_t start_point, int *offsets)
 {
 	for (int i = 0; i < NUM_OFFSETS; ++i)
 	{
 		/* First take the starting point mod each low prime, then use this value to find the offset. See readme for explanation. */
-		offsets[i] = (char)mpz_tdiv_ui (start_point, OFFSET_PRIMES[i]);
+		offsets[i] = (int)mpz_tdiv_ui (start_point, OFFSET_PRIMES[i]);
 		offsets[i] = (offsets[i] + (offsets[i] % 2) * OFFSET_PRIMES[i]) / 2;
 	}
 }
 
-/* This function updates the offsets after the test value has been incremented */
+/* This function updates the offsets after the test value has been incremented. */
 static void
-update_offsets (char *offsets)
+update_offsets (int *offsets)
 {
 	for (int i = 0; i < NUM_OFFSETS; ++i)
 		offsets[i] = (offsets[i] + 1) % OFFSET_PRIMES[i];
 }
 
-/* This function finds the next odd number which should be tested */
-static void
-next_test (mpz_t test_value, char *offsets)
+/* This function, based on strlen, tests whether any of the offsets is equal to 0. */
+static enum boolean
+any_offset_equals_zero (const int *start_pointer)
 {
-	/* Test if any of the offsets is equal to 0 using the strlen function */
-	while (strlen(offsets) != NUM_OFFSETS)
+	int *end_pointer = (int *)start_pointer;
+	while (*end_pointer)
+		++end_pointer;
+	/* (end_pointer - start_pointer) will equal NUM_OFFSETS if and only if none of the offsets equals 0. */
+	return ((end_pointer - start_pointer) != NUM_OFFSETS);
+}
+
+/* This function finds the next odd number which should be tested. */
+static void
+next_test (mpz_t test_value, int *offsets)
+{
+	while (any_offset_equals_zero (offsets))
 	{
 		mpz_add_ui (test_value, test_value, 2); // next odd integer
 		update_offsets (offsets);
 	}
 }
 
-/* This method defines the behavior of each thread in finding primes and printing them to the output file */
+/* This method defines the behavior of each thread in finding primes and printing them to the output file. */
 static void *
 find_prime (void *thread_args)
 {
@@ -196,16 +206,16 @@ find_prime (void *thread_args)
 	mpz_init (test_value);
 	FILE *out_file;
 
-	/* Creating the offsets as a char array and storing a '\0' at the end allows
-	for the use of the strlen function to test if any offsets are equal to 0. */
-	char offsets[NUM_OFFSETS + 1];
-	offsets[NUM_OFFSETS] = '\0';
+	/* Creating the offsets as an int array and storing a 0 at the end allows
+	for the use of the  function to test if any offsets are equal to 0. */
+	int offsets[NUM_OFFSETS + 1];
+	offsets[NUM_OFFSETS] = 0;
 	
-	/* generate random starting position for search from the set of odd integers with the specified number of digits */
+	/* Generate random starting position for search from the set of odd integers with the specified number of digits. */
 	gen_start (test_value, data->num_digits, data->random1, &data->rand_state_mutex1);
 	
 	/* Keeping track of the offsets from odd integers divisible by low prime numbers allows for skipping the 
-	 * testing of odd numbers divisible by these low primes.  See readme for explanation of this principle. */
+	testing of odd numbers divisible by these low primes.  See readme for explanation of this principle. */
 	offset_init (test_value, offsets);
 	next_test (test_value, offsets);
 	probably_prime = miller_rabin (test_value, data->precision, data->random2, &data->rand_state_mutex2);
@@ -216,17 +226,17 @@ find_prime (void *thread_args)
 		update_offsets (offsets);
 		next_test (test_value, offsets);
 		/* Moving the test to the end of the loop (which involves running the test once before the loop begins)
-		 * ensures that no part of the loop executes unnecessarily once a result of TRUE has already been returned. */
+		ensures that no part of the loop executes unnecessarily once a result of TRUE has already been returned. */
 		probably_prime = miller_rabin (test_value, data->precision, data->random2, &data->rand_state_mutex2);
 	}
 	
-	/* print and increment current number of primes found */
+	/* Print and increment current number of primes found. */
 	pthread_mutex_lock (&data->current_num_primes_mutex);
 	printf ("Prime #%ld found\n", ++data->current_num_primes);
 	pthread_mutex_unlock (&data->current_num_primes_mutex);
 	
-	/* Open output file, append prime, and close output file.  Opening and closing the output file each time
-	 * allows the program to be aborted without losing the primes which have already been found. */
+	/* Open output file, append prime, and close output file.  Opening and closing the output file each
+	time allows the program to be aborted without losing the primes which have already been found. */
 	pthread_mutex_lock (&data->out_file_mutex);
 	out_file = fopen (data->out_file_name_pointer, "a");
 	if (!out_file)
@@ -266,9 +276,9 @@ print_help ()
 	printf ("\t-v print program version infromation\n");
 }
 
-/* The main method generates prime numbers based on the command line arguments */
+/* The main method generates prime numbers based on the command line arguments. */
 int main (int argc, char *argv[]) {
-	/* set default argument values */
+	/* Set default argument values. */
 	char out_file_name[11] = "primes.txt";
 	char *out_file_name_pointer = out_file_name; // output file name (-o)
 	long num_digits = 300; // number of digits of primes to generate (-d)
@@ -277,7 +287,7 @@ int main (int argc, char *argv[]) {
 	unsigned long seed = (unsigned long)time (NULL); // random seed (-s)
 	enum boolean append = FALSE; // whether the program should try to append output to an existing file (-a)
 	
-	/* set argument values and check for validity */
+	/* Set argument values and check for validity. */
 	if (argc > 1)
 	{
 		char **invalidInt = NULL; // for checking whether integer arguments are valid
@@ -321,9 +331,9 @@ int main (int argc, char *argv[]) {
 				if (i < argc)
 				{
 					num_digits = (int)strtol (argv[i], invalidInt, BASE);
-					if (num_digits <= 2 || invalidInt)
+					if (num_digits < 10 || invalidInt)
 					{
-						fprintf (stderr, "Error: number of digits must be a valid integer greater than 2.\n");
+						fprintf (stderr, "Error: number of digits must be a valid integer greater than or equal to 10.\n");
 						exit (EXIT_FAILURE);
 					}
 				}
@@ -338,7 +348,7 @@ int main (int argc, char *argv[]) {
 				++i;
 				if (i < argc)
 				{
-					/* create a temporary long int to test for a negative value */
+					/* Create a temporary long int to test for a negative value. */
 					long seed_temp = strtol (argv[i], invalidInt, BASE);
 					if (seed_temp < 0 || invalidInt)
 					{
@@ -393,20 +403,20 @@ int main (int argc, char *argv[]) {
 		}
 	}
 	
-	/* delete contents of output file unless user specified otherwise */
+	/* Delete contents of output file unless user specified otherwise. */
 	if (!append)
 	{
 		FILE *out_file = fopen (out_file_name_pointer, "w");
 		fclose (out_file);
 	}
 	
-	/* initialize and set thread detached and stacksize attributes */
+	/* Initialize and set thread detached and stacksize attributes. */
 	pthread_attr_t attr;
 	pthread_attr_init (&attr);
 	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE);
 	pthread_attr_setstacksize (&attr, THREAD_STACKSIZE);
 	
-	/* initialize thread arguments */
+	/* Initialize thread arguments. */
 	struct thread_data_t thread_args = {num_digits, precision}; // num_digits and precision must be initialized immediately because they are const
 	thread_args.out_file_name_pointer = out_file_name_pointer;
 	gmp_randinit_mt (thread_args.random1);
@@ -419,11 +429,11 @@ int main (int argc, char *argv[]) {
 	pthread_mutex_init (&thread_args.rand_state_mutex1, NULL);
 	pthread_mutex_init (&thread_args.rand_state_mutex2, NULL);
 	
-	/* initialize time vars and get time */
+	/* Initialize time vars and get time. */
 	struct timeval start_time, end_time;
 	gettimeofday (&start_time, NULL);
 	
-	/* create one thread to find each prime */
+	/* Create one thread to find each prime. */
 	pthread_t threads[num_primes];
 	int rc;
 	for (int i = 0; i < num_primes; ++i)
@@ -436,7 +446,7 @@ int main (int argc, char *argv[]) {
 		}
 	}
 	
-	/* free attribute and wait for the threads to finish */
+	/* Free attribute and wait for the threads to finish. */
 	pthread_attr_destroy (&attr);
 	for (int i = 0; i < num_primes; ++i)
 	{
@@ -448,7 +458,7 @@ int main (int argc, char *argv[]) {
 		}
 	}
 	
-	/* get end time and print time taken */
+	/* Get end time and print time taken. */
 	gettimeofday (&end_time, NULL);
 	int usec;
 	if (end_time.tv_usec > start_time.tv_usec)
@@ -460,7 +470,7 @@ int main (int argc, char *argv[]) {
 	}
 	printf ("Execution time: %ld seconds, %d microseconds.\n", end_time.tv_sec - start_time.tv_sec, usec);
 	
-	/* clear thread arguments and exit */
+	/* Clear thread arguments and exit. */
 	gmp_randclear (thread_args.random1);
 	gmp_randclear (thread_args.random2);
 	pthread_mutex_destroy (&thread_args.out_file_mutex);
