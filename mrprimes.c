@@ -266,14 +266,14 @@ static void
 print_help ()
 {
 	printf ("usage:\n");
-	printf ("\t-o set ouput file\n");
+	printf ("\t-o set output file\n");
 	printf ("\t-n set number of primes to generate\n");
 	printf ("\t-d set number of digits of primes to generate\n");
 	printf ("\t-p set number of rounds of Miller-Rabin test to perform\n");
 	printf ("\t-s set random seed\n");
 	printf ("\t-a set whether to append output to an existing file\n");
 	printf ("\t-h print this help information\n");
-	printf ("\t-v print program version infromation\n");
+	printf ("\t-v print program version information\n");
 }
 
 /* The main method generates prime numbers based on the command line arguments. */
