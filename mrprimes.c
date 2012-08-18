@@ -176,13 +176,13 @@ update_offsets (int *offsets)
 
 /* This function, based on strlen, tests whether any of the offsets is equal to 0. */
 static enum boolean
-any_offset_equals_zero (const int *start_pointer)
+any_offset_equals_zero (const int *start_offset)
 {
-	int *end_pointer = (int *)start_pointer;
-	while (*end_pointer)
-		++end_pointer;
-	/* (end_pointer - start_pointer) will equal NUM_OFFSETS if and only if none of the offsets equals 0. */
-	return ((end_pointer - start_pointer) != NUM_OFFSETS);
+	int *current_offset = (int *)start_offset;
+	while (*current_offset)
+		++current_offset;
+	/* (current_offset - start_offset) will equal NUM_OFFSETS if and only if none of the offsets equals 0. */
+	return ((current_offset - start_offset) != NUM_OFFSETS);
 }
 
 /* This function finds the next odd number which should be tested. */
