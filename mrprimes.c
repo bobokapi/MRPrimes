@@ -252,6 +252,7 @@ find_prime (void *thread_args)
 	pthread_exit (EXIT_SUCCESS);
 }
 
+/* Thus method prints the version number and a copyright message. */
 static void
 print_version ()
 {
@@ -262,6 +263,7 @@ print_version ()
 	printf ("\tThere is NO WARRANTY, to the extent permitted by law.\n");
 }
 
+/* This method prints a usage message. */
 static void
 print_help ()
 {
