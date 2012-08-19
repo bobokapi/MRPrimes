@@ -292,7 +292,7 @@ int main (int argc, char *argv[]) {
 	/* Set argument values and check for validity. */
 	if (argc > 1)
 	{
-		char **invalidInt = NULL; // for checking whether integer arguments are valid
+		char **invalid_int = NULL; // for checking whether integer arguments are valid
 		
 		for (int i = 1; i < argc; ++i)
 		{
@@ -314,8 +314,8 @@ int main (int argc, char *argv[]) {
 				++i;
 				if (i < argc)
 				{
-					num_primes = (int)strtol (argv[i], invalidInt, BASE);
-					if (num_primes <= 0 || invalidInt)
+					num_primes = (int)strtol (argv[i], invalid_int, BASE);
+					if (num_primes <= 0 || invalid_int)
 					{
 						fprintf (stderr, "Error: number of primes must be a valid integer greater than 0.\n");
 						exit (EXIT_FAILURE);
@@ -332,8 +332,8 @@ int main (int argc, char *argv[]) {
 				++i;
 				if (i < argc)
 				{
-					num_digits = (int)strtol (argv[i], invalidInt, BASE);
-					if (num_digits < 10 || invalidInt)
+					num_digits = (int)strtol (argv[i], invalid_int, BASE);
+					if (num_digits < 10 || invalid_int)
 					{
 						fprintf (stderr, "Error: number of digits must be a valid integer greater than or equal to 10.\n");
 						exit (EXIT_FAILURE);
@@ -351,8 +351,8 @@ int main (int argc, char *argv[]) {
 				if (i < argc)
 				{
 					/* Create a temporary long int to test for a negative value. */
-					long seed_temp = strtol (argv[i], invalidInt, BASE);
-					if (seed_temp < 0 || invalidInt)
+					long seed_temp = strtol (argv[i], invalid_int, BASE);
+					if (seed_temp < 0 || invalid_int)
 					{
 						fprintf (stderr, "Error: seed value must be a valid long integer greater than or equal to 0.\n");
 						exit (EXIT_FAILURE);
@@ -370,8 +370,8 @@ int main (int argc, char *argv[]) {
 				++i;
 				if (i < argc)
 				{
-					precision = strtol (argv[i], invalidInt, BASE);
-					if (precision <= 0 || precision >= 200 || invalidInt)
+					precision = strtol (argv[i], invalid_int, BASE);
+					if (precision <= 0 || precision >= 200 || invalid_int)
 					{
 						fprintf (stderr, "Error: Miller Rabin test precision must be a valid integer greater than 0 and less than 200.\n");
 						exit (EXIT_FAILURE);
@@ -437,13 +437,13 @@ int main (int argc, char *argv[]) {
 	
 	/* Create one thread to find each prime. */
 	pthread_t threads[num_primes];
-	int rc;
+	int return_code;
 	for (int i = 0; i < num_primes; ++i)
 	{
-		rc = pthread_create (&threads[i], &attr, find_prime, (void *)&thread_args);
-		if (rc)
+		return_code = pthread_create (&threads[i], &attr, find_prime, (void *)&thread_args);
+		if (return_code)
 		{
-			fprintf (stderr, "Error: return code from pthread_create is %d\n", rc);
+			fprintf (stderr, "Error: return code from pthread_create is %d\n", return_code);
 			exit (EXIT_FAILURE);
 		}
 	}
@@ -452,10 +452,10 @@ int main (int argc, char *argv[]) {
 	pthread_attr_destroy (&attr);
 	for (int i = 0; i < num_primes; ++i)
 	{
-		rc = pthread_join (threads[i], NULL);
-		if (rc)
+		return_code = pthread_join (threads[i], NULL);
+		if (return_code)
 		{
-			fprintf (stderr, "Error: return code from pthread_join is %d\n", rc);
+			fprintf (stderr, "Error: return code from pthread_join is %d\n", return_code);
 			exit (EXIT_FAILURE);
 		}
 	}
