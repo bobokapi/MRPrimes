@@ -8,7 +8,7 @@ Description
 
 MRPrimes is designed to allow for the generation of large prime numbers using
 the probabalistic Miller-Rabin primality test. This means that the results are
-nort guaranteed to be prime, although using the default precision of 8 rounds
+not guaranteed to be prime, although using the default precision of 8 rounds
 gives a certainty of at least 1 - (1/4) ^ 8 that the output is prime. See
 http://en.wikipedia.org/wiki/Miller-Rabin. MRPrimes generates the probable
 primes and prints them to a file ("primes.txt" by default).
