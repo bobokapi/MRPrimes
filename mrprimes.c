@@ -170,8 +170,10 @@ offset_init (const mpz_t start_point, int *offsets)
 static void
 update_offsets (int *offsets)
 {
+	/* If the incremented offset is equal to the corresponding low prime, then it must be reset to 0. */
 	for (int i = 0; i < NUM_OFFSETS; ++i)
-		offsets[i] = (offsets[i] + 1) % OFFSET_PRIMES[i];
+		if (++offsets[i] == OFFSET_PRIMES[i])
+			offsets[i] = 0;
 }
 
 /* This function, based on strlen, tests whether any of the offsets is equal to 0. */
