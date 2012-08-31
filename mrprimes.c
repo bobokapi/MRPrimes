@@ -1,4 +1,4 @@
-/* 
+/*
 MRPrimes - a program which generates large prime numbers using the Miller-Rabin probabalistic
 primality test implemented with the GNU Multiple Precision math library and POSIX threads.
 Copyright 2012 Evan Brown
@@ -98,8 +98,8 @@ miller_rabin (const mpz_t n, int k, gmp_randstate_t random, pthread_mutex_t *ran
 		
 		mpz_add_ui (tmp, tmp, 3); // tmp = n - 1
 		
-		if (!mpz_cmp_ui (x, 1) || !mpz_cmp (x, tmp))
-			continue; // if (x == 1 || x == n - 1)
+		if (!mpz_cmp_ui (x, 1) || !mpz_cmp (x, tmp)) // if (x == 1 || x == n - 1)
+			continue;
 		for (r = 1; r < s; ++r)
 		{
 			mul_mod (x, x, x, n); // x = x * x % n
@@ -129,7 +129,7 @@ gen_start (mpz_t n, int num_digits, gmp_randstate_t random, pthread_mutex_t *ran
 	mpz_t tmp;
 	mpz_init (tmp);
 	
-	/* set tmp = 45 followed by (num_digits - 2) zeroes */
+	/* Set tmp = 45 followed by (num_digits - 2) zeroes. */
 	s[0] = '4';
 	s[1] = '5';
 	int i;
@@ -143,10 +143,10 @@ gen_start (mpz_t n, int num_digits, gmp_randstate_t random, pthread_mutex_t *ran
 	pthread_mutex_unlock (rand_state_mutex);
 	mpz_mul_2exp (n, n, 1); // n *= 2 -> n in [0, 8999... - 1]
 	
-	/* set tmp = 1 followed by (num_digits - 2) zeroes */
+	/* Set tmp = 1 followed by (num_digits - 2) zeroes. */
 	s[0] = '1';
 	s[1] = '0';
-	s[i] = '\0';
+	s[i] = '\0'; // shorten string by one character
 	mpz_set_str (tmp, (const char *)&s, BASE);
 	
 	mpz_add (n, n, tmp); // n in [1000... , 999... - 1] (set of all even integers with specified number of digits)
@@ -181,7 +181,7 @@ static enum boolean
 any_offset_equals_zero (const int *start_offset)
 {
 	int *current_offset = (int *)start_offset;
-	while (*current_offset)
+	while (*current_offset) // loop until the value of current_offset is zero
 		++current_offset;
 	/* (current_offset - start_offset) will equal NUM_OFFSETS if and only if none of the offsets equals 0. */
 	return ((current_offset - start_offset) != NUM_OFFSETS);
@@ -198,7 +198,7 @@ next_test (mpz_t test_value, int *offsets)
 	}
 }
 
-/* This method defines the behavior of each thread in finding primes and printing them to the output file. */
+/* This method defines the behavior of each thread: find one prime and print it to the output file. */
 static void *
 find_prime (void *thread_args)
 {
@@ -207,7 +207,7 @@ find_prime (void *thread_args)
 	mpz_t test_value;
 	mpz_init (test_value);
 	FILE *out_file;
-
+	
 	/* Creating the offsets as an int array and storing a 0 at the end allows
 	for the use of the  function to test if any offsets are equal to 0. */
 	int offsets[NUM_OFFSETS + 1];
@@ -216,7 +216,7 @@ find_prime (void *thread_args)
 	/* Generate random starting position for search from the set of odd integers with the specified number of digits. */
 	gen_start (test_value, data->num_digits, data->random1, &data->rand_state_mutex1);
 	
-	/* Keeping track of the offsets from odd integers divisible by low prime numbers allows for skipping the 
+	/* Keeping track of the offsets from odd integers divisible by low prime numbers allows for skipping the
 	testing of odd numbers divisible by these low primes.  See readme for explanation of this principle. */
 	offset_init (test_value, offsets);
 	next_test (test_value, offsets);
@@ -308,7 +308,7 @@ int main (int argc, char *argv[]) {
 				else
 				{
 					fprintf (stderr, "Error: %s takes an argument. See readme for usage.\n", argv[i - 1]);
-					exit (EXIT_FAILURE);
+					return EXIT_FAILURE;
 				}
 			}
 			else if (strcmp (argv[i], "-n") == 0 || strcmp (argv[i], "--numprimes") == 0)
@@ -320,13 +320,13 @@ int main (int argc, char *argv[]) {
 					if (num_primes <= 0 || invalid_int)
 					{
 						fprintf (stderr, "Error: number of primes must be a valid integer greater than 0.\n");
-						exit (EXIT_FAILURE);
+						return EXIT_FAILURE;
 					}
 				}
 				else
 				{
 					fprintf (stderr, "Error: %s takes an argument. See readme for usage.\n", argv[i - 1]);
-					exit (EXIT_FAILURE);
+					return EXIT_FAILURE;
 				}
 			}
 			else if (strcmp (argv[i], "-d") == 0 || strcmp (argv[i], "--numdigits") == 0)
@@ -338,13 +338,13 @@ int main (int argc, char *argv[]) {
 					if (num_digits < 10 || invalid_int)
 					{
 						fprintf (stderr, "Error: number of digits must be a valid integer greater than or equal to 10.\n");
-						exit (EXIT_FAILURE);
+						return EXIT_FAILURE;
 					}
 				}
 				else
 				{
 					fprintf (stderr, "Error: %s takes an argument. See readme for usage.\n", argv[i - 1]);
-					exit (EXIT_FAILURE);
+					return EXIT_FAILURE;
 				}
 			}
 			else if (strcmp (argv[i], "-s") == 0 || strcmp (argv[i], "--seed") == 0)
@@ -357,14 +357,14 @@ int main (int argc, char *argv[]) {
 					if (seed_temp < 0 || invalid_int)
 					{
 						fprintf (stderr, "Error: seed value must be a valid long integer greater than or equal to 0.\n");
-						exit (EXIT_FAILURE);
+						return EXIT_FAILURE;
 					}
 					seed = seed_temp;
 				}
 				else
 				{
 					fprintf (stderr, "Error: %s takes an argument. See readme for usage.\n", argv[i - 1]);
-					exit (EXIT_FAILURE);
+					return EXIT_FAILURE;
 				}
 			}
 			else if (strcmp (argv[i], "-p") == 0 || strcmp (argv[i], "--precision") == 0)
@@ -376,13 +376,13 @@ int main (int argc, char *argv[]) {
 					if (precision <= 0 || precision >= 200 || invalid_int)
 					{
 						fprintf (stderr, "Error: Miller Rabin test precision must be a valid integer greater than 0 and less than 200.\n");
-						exit (EXIT_FAILURE);
+						return EXIT_FAILURE;
 					}
 				}
 				else
 				{
 					fprintf (stderr, "Error: %s takes an argument. See readme for usage.\n", argv[i - 1]);
-					exit (EXIT_FAILURE);
+					return EXIT_FAILURE;
 				}
 			}
 			else if (strcmp (argv[i], "-a") == 0 || strcmp (argv[i], "--append") == 0)
@@ -392,17 +392,17 @@ int main (int argc, char *argv[]) {
 			else if (strcmp (argv[i], "-v") == 0 || strcmp (argv[i], "--version") == 0)
 			{
 				print_version ();
-				exit (EXIT_SUCCESS);
+				return EXIT_SUCCESS;
 			}
 			else if (strcmp (argv[i], "-h") == 0 || strcmp (argv[i], "--help") == 0)
 			{
 				print_help ();
-				exit (EXIT_SUCCESS);
+				return EXIT_SUCCESS;
 			}
 			else
 			{
 				fprintf (stderr, "Error: invalid arguments. See readme for usage.\n");
-				exit (EXIT_FAILURE);
+				return EXIT_FAILURE;
 			}
 		}
 	}
@@ -446,7 +446,7 @@ int main (int argc, char *argv[]) {
 		if (return_code)
 		{
 			fprintf (stderr, "Error: return code from pthread_create is %d\n", return_code);
-			exit (EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 	}
 	
@@ -458,7 +458,7 @@ int main (int argc, char *argv[]) {
 		if (return_code)
 		{
 			fprintf (stderr, "Error: return code from pthread_join is %d\n", return_code);
-			exit (EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 	}
 	
