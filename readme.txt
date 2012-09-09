@@ -95,16 +95,16 @@ This means that any random odd integer, n, can be classified as being of some
 "offset" from the preceding odd integer divisible by 7, div, and this offset
 can be related to the value of n mod 7.
 
-n			n mod 7		offset
+n           n mod 7     offset
 ------------------------------
-div			0			0
-div + 2		2			1
-div + 4		4			2
-div + 6		6			3
-div + 8		1			4
-div + 10	3			5
-div + 12	5			6
-div + 14	0			0
+div         0           0
+div + 2     2           1
+div + 4     4           2
+div + 6     6           3
+div + 8     1           4
+div + 10    3           5
+div + 12    5           6
+div + 14    0           0
 
 For numbers more than 7 away from div, n mod 7 is 7 less than the difference
 between n and div. Relating the value n mod 7 to the offset is simply a matter
