@@ -282,7 +282,8 @@ print_help ()
 }
 
 /* The main method generates prime numbers based on the command line arguments. */
-int main (int argc, char *argv[]) {
+int main (int argc, char *argv[])
+{
 	/* Set default argument values. */
 	char out_file_name[11] = "primes.txt";
 	char *out_file_name_pointer = out_file_name; // output file name (-o)
