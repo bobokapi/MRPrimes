@@ -210,7 +210,7 @@ find_prime (void *thread_args)
 	FILE *out_file;
 	
 	/* Creating the offsets as an int array and storing a 0 at the end allows
-	for the use of the  function to test if any offsets are equal to 0. */
+	for the use of the function to test if any offsets are equal to 0. */
 	int offsets[NUM_OFFSETS + 1];
 	offsets[NUM_OFFSETS] = 0;
 	
@@ -233,7 +233,7 @@ find_prime (void *thread_args)
 		probably_prime = miller_rabin (test_value, data->precision, data->random2, &data->rand_state_mutex2);
 	}
 	
-	/* Print and increment current number of primes found. */
+	/* Increment and print current number of primes found. */
 	pthread_mutex_lock (&data->current_num_primes_mutex);
 	printf ("Prime #%ld found\n", ++data->current_num_primes);
 	pthread_mutex_unlock (&data->current_num_primes_mutex);
