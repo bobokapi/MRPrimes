@@ -1,5 +1,5 @@
 MRPrimes
-Copyright 2012 Evan Brown
+Copyright 2012, 2013 Evan Brown
 Released under GNU General Public License (see license.txt)
 Contact: Evan Brown (ebrown255@gmail.com)
 
@@ -22,7 +22,7 @@ MRPrimes also relies on POSIX multithreading.
 
 It is recommended to compile MRPrimes with the GNU Compiler Collection. It is
 possible to compile MRPrimes using:
-  gcc -std=c99 -O3 -lgmp -lpthread -o mrprimes mrprimes.c
+  gcc -std=c99 -O3 -o mrprimes mrprimes.c -lgmp -lpthread
 
 This will produce the executable file mrprimes in the current directory.
 
@@ -112,5 +112,3 @@ of adding back in this 7 when appropriate and dividing by 2. The formula is
 offset = (n mod 7 + ((n mod 7) mod 2) * 7) / 2
 or generally:
 offset = (n mod p + ((n mod p) mod 2) * p) / 2
-
-MRPrimes finds and employs the offsets for the first 100 odd primes.

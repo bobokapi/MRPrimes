@@ -1,7 +1,7 @@
 /*
-MRPrimes - a program which generates large prime numbers using the Miller-Rabin probabalistic
+MRPrimes - a program to generate large prime numbers using the Miller-Rabin probabalistic
 primality test implemented with the GNU Multiple Precision math library and POSIX threads.
-Copyright 2012 Evan Brown
+Copyright 2012, 2013 Evan Brown
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <time.h>
 #include <sys/time.h>
 #include <string.h>
@@ -28,19 +29,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* Create boolean type. */
 enum boolean {FALSE, TRUE};
 /* Set constants. */
-enum constants {BASE = 10, NUM_OFFSETS = 100, THREAD_STACKSIZE = 1024, USECS_PER_SEC = 1000000};
-/* The first 100 odd primes. */
-static const int OFFSET_PRIMES[] = {  3,      5,      7,     11,     13,     17,     19,     23,     29,     31,
-                                     37,     41,     43,     47,     53,     59,     61,     67,     71,     73,
-                                     79,     83,     89,     97,    101,    103,    107,    109,    113,    127,
-                                    131,    137,    139,    149,    151,    157,    163,    167,    173,    179,
-                                    181,    191,    193,    197,    199,    211,    223,    227,    229,    233,
-                                    239,    241,    251,    257,    263,    269,    271,    277,    281,    283,
-                                    293,    307,    311,    313,    317,    331,    337,    347,    349,    353,
-                                    359,    367,    373,    379,    383,    389,    397,    401,    409,    419,
-                                    421,    431,    433,    439,    443,    449,    457,    461,    463,    467,
-                                    479,    487,    491,    499,    503,    509,    521,    523,    541,    547};
-#define VERSION_NUMBER_STRING "1.0.2"
+enum constants {BASE = 10, NUM_OFFSETS = 1000, THREAD_STACKSIZE = 1024, USECS_PER_SEC = 1000000};
+static uint32_t offset_primes[NUM_OFFSETS];
+
+#define VERSION_NUMBER_STRING "1.0.5"
 
 /* The following structure contains the necessary arguments to allow the threads to perform their function. */
 struct thread_data_t
@@ -58,6 +50,29 @@ struct thread_data_t
 	pthread_mutex_t rand_state_mutex2;
 };
 
+
+/* This function generates low odd primes for offsets at start of program run. */
+static void
+init_offsets ()
+{
+	uint32_t np = 0, n = 3; // number of primes, first odd prime
+	while (np < NUM_OFFSETS)
+	{
+		enum boolean prime = TRUE;
+		for (int i = 0; i < np; ++i)
+		{
+			if (n % offset_primes[i] == 0)
+			{
+				prime = FALSE;
+				break;
+			}
+		}
+		if (prime)
+			offset_primes[np++] = n;
+		n += 2; // next odd integer
+	}
+}
+
 /* This function takes the remainder of a product and assigns the result to the first parameter (mpz_t acts as a reference). */
 static void
 mul_mod (mpz_t result, const mpz_t factor0, const mpz_t factor1, const mpz_t mod)
@@ -71,7 +86,7 @@ static enum boolean
 miller_rabin (const mpz_t n, int k, gmp_randstate_t random, pthread_mutex_t *rand_state_mutex)
 {
 	/* Write n - 1 as 2^s*d with d odd by factoring powers of 2 from n - 1. */
-	unsigned long s = 0;
+	uint64_t s = 0;
 	mpz_t d, a, x, tmp;
 	mpz_inits (d, a, x, tmp, NULL);
 	mpz_sub_ui (d, n, 1); // d = n - 1
@@ -84,7 +99,7 @@ miller_rabin (const mpz_t n, int k, gmp_randstate_t random, pthread_mutex_t *ran
 	
 	for (int i = 0; i < k; ++i)
 	{
-		unsigned long r;
+		uint64_t r;
 		
 		/* Generate random number a in range [2, n - 2]. */
 		mpz_set (tmp, n); // tmp = n
@@ -162,8 +177,8 @@ offset_init (const mpz_t start_point, int *offsets)
 	for (int i = 0; i < NUM_OFFSETS; ++i)
 	{
 		/* First take the starting point mod each low prime, then use this value to find the offset. See readme for explanation. */
-		offsets[i] = (int)mpz_tdiv_ui (start_point, OFFSET_PRIMES[i]);
-		offsets[i] = (offsets[i] + (offsets[i] % 2) * OFFSET_PRIMES[i]) / 2;
+		offsets[i] = (int)mpz_tdiv_ui (start_point, offset_primes[i]);
+		offsets[i] = (offsets[i] + (offsets[i] % 2) * offset_primes[i]) / 2;
 	}
 }
 
@@ -173,7 +188,7 @@ update_offsets (int *offsets)
 {
 	/* If the incremented offset is equal to the corresponding low prime, then it must be reset to 0. */
 	for (int i = 0; i < NUM_OFFSETS; ++i)
-		if (++offsets[i] == OFFSET_PRIMES[i])
+		if (++offsets[i] == offset_primes[i])
 			offsets[i] = 0;
 }
 
@@ -291,7 +306,7 @@ main (int argc, char *argv[])
 	long num_digits = 300; // number of digits of primes to generate (-d)
 	long num_primes = 10; // number of primes to generate (-n)
 	int precision = 8; // rounds of Miller-Rabin test to perform (-p)
-	unsigned long seed = (unsigned long)time (NULL); // random seed (-s)
+	uint64_t seed = (uint64_t)time (NULL); // random seed (-s)
 	enum boolean append = FALSE; // whether the program should try to append output to an existing file (-a)
 	
 	/* Set argument values and check for validity. */
@@ -319,7 +334,7 @@ main (int argc, char *argv[])
 				++i;
 				if (i < argc)
 				{
-					num_primes = (int)strtol (argv[i], invalid_int, BASE);
+					num_primes = strtol (argv[i], invalid_int, BASE);
 					if (num_primes <= 0 || invalid_int)
 					{
 						fprintf (stderr, "Error: number of primes must be a valid integer greater than 0.\n");
@@ -337,7 +352,7 @@ main (int argc, char *argv[])
 				++i;
 				if (i < argc)
 				{
-					num_digits = (int)strtol (argv[i], invalid_int, BASE);
+					num_digits = strtol (argv[i], invalid_int, BASE);
 					if (num_digits < 10 || invalid_int)
 					{
 						fprintf (stderr, "Error: number of digits must be a valid integer greater than or equal to 10.\n");
@@ -409,6 +424,9 @@ main (int argc, char *argv[])
 			}
 		}
 	}
+	
+	/* Initialize offset primes. */
+	init_offsets();
 	
 	/* Delete contents of output file unless user specified otherwise. */
 	if (!append)
