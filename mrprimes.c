@@ -21,7 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
-#include <sys/time.h>
 #include <string.h>
 #include <pthread.h>
 #include "gmp.h"
@@ -29,7 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* Create boolean type. */
 enum boolean {FALSE, TRUE};
 /* Set constants. */
-enum constants {BASE = 10, NUM_OFFSETS = 1000, THREAD_STACKSIZE = 1024, USECS_PER_SEC = 1000000};
+enum constants {BASE = 10, NUM_OFFSETS = 1000, THREAD_STACKSIZE = 1024, NSECS_PER_SEC = 1000000000};
 static uint32_t offset_primes[NUM_OFFSETS];
 
 #define VERSION_NUMBER_STRING "1.0.5"
@@ -454,9 +453,9 @@ main (int argc, char *argv[])
 	pthread_mutex_init (&thread_args.rand_state_mutex1, NULL);
 	pthread_mutex_init (&thread_args.rand_state_mutex2, NULL);
 	
-	/* Initialize time vars and get time. */
-	struct timeval start_time, end_time;
-	gettimeofday (&start_time, NULL);
+	/* Initialize timespecs and get start time. */
+	struct timespec start_ts, end_ts;
+	clock_gettime (CLOCK_MONOTONIC, &start_ts);
 	
 	/* Create one thread to find each prime. */
 	pthread_t threads[num_primes];
@@ -484,16 +483,16 @@ main (int argc, char *argv[])
 	}
 	
 	/* Get end time and print time taken. */
-	gettimeofday (&end_time, NULL);
-	int usec;
-	if (end_time.tv_usec > start_time.tv_usec)
-		usec = (int)(end_time.tv_usec - start_time.tv_usec);
+	clock_gettime (CLOCK_MONOTONIC, &end_ts);
+	int nsec;
+	if (end_ts.tv_nsec > start_ts.tv_nsec)
+		nsec = (int)(end_ts.tv_nsec - start_ts.tv_nsec);
 	else
 	{
-		usec = (int)(USECS_PER_SEC + end_time.tv_usec - start_time.tv_usec);
-		--end_time.tv_sec;
+		nsec = (int)(NSECS_PER_SEC + end_ts.tv_nsec - start_ts.tv_nsec);
+		--end_ts.tv_sec;
 	}
-	printf ("Execution time: %ld seconds, %d microseconds.\n", end_time.tv_sec - start_time.tv_sec, usec);
+	printf ("Execution time: %ld seconds, %d nanoseconds.\n", end_ts.tv_sec - start_ts.tv_sec, nsec);
 	
 	/* Clear thread arguments and exit. */
 	gmp_randclear (thread_args.random1);
