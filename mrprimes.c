@@ -31,7 +31,7 @@ enum boolean {FALSE, TRUE};
 enum constants {BASE = 10, THREAD_STACKSIZE = 1024, NSECS_PER_SEC = 1000000000};
 static uint32_t *offset_primes = NULL; // to be initialized in main before threads are created
 
-#define VERSION_NUMBER_STRING "1.0.5"
+#define VERSION_NUMBER_STRING "1.0.6"
 
 /* The following structure contains the necessary arguments to allow the threads to perform their function. */
 struct thread_data_t
@@ -275,7 +275,7 @@ static void
 print_version ()
 {
 	printf ("\tMRPrimes %s\n", VERSION_NUMBER_STRING);
-	printf ("\tCopyright (C) 2012 Evan Brown\n");
+	printf ("\tCopyright (C) 2012, 2013 Evan Brown\n");
 	printf ("\tLicense GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n");
 	printf ("\tThis is free software: you are free to change and redistribute it.\n");
 	printf ("\tThere is NO WARRANTY, to the extent permitted by law.\n");
@@ -290,6 +290,7 @@ print_help ()
 	printf ("\t-n set number of primes to generate\n");
 	printf ("\t-d set number of digits of primes to generate\n");
 	printf ("\t-p set number of rounds of Miller-Rabin test to perform\n");
+	printf ("\t-O set number of offset primes to generate\n");
 	printf ("\t-s set random seed\n");
 	printf ("\t-a set whether to append output to an existing file\n");
 	printf ("\t-h print this help information\n");
@@ -305,7 +306,7 @@ main (int argc, char *argv[])
 	char *out_file_name_pointer = out_file_name; // output file name (-o)
 	long num_digits = 300; // number of digits of primes to generate (-d)
 	long num_primes = 10; // number of primes to generate (-n)
-	long num_offsets = 10000; // number of offset primes
+	long num_offsets = 10000; // number of offset primes (-O)
 	int precision = 8; // rounds of Miller-Rabin test to perform (-p)
 	uint64_t seed = (uint64_t)time (NULL); // random seed (-s)
 	enum boolean append = FALSE; // whether the program should try to append output to an existing file (-a)
@@ -323,6 +324,24 @@ main (int argc, char *argv[])
 				if (i < argc)
 				{
 					out_file_name_pointer = argv[i];
+				}
+				else
+				{
+					fprintf (stderr, "Error: %s takes an argument. See readme for usage.\n", argv[i - 1]);
+					return EXIT_FAILURE;
+				}
+			}
+			else if (strcmp (argv[i], "-O") == 0 || strcmp (argv[i], "--numoffsets") == 0)
+			{
+				++i;
+				if (i < argc)
+				{
+					num_offsets = strtol (argv[i], invalid_int, BASE);
+					if (num_offsets <= 0 || invalid_int)
+					{
+						fprintf (stderr, "Error: number of offset primes must be a valid integer greater than 0.\n");
+						return EXIT_FAILURE;
+					}
 				}
 				else
 				{

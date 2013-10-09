@@ -75,6 +75,12 @@ This would result in the program appending its results to the file "out.txt"
 instead of overwriting it if it already exists. By default, the program
 overwrites the output file rather than appending to it.
 
+[-O] or [--numoffsets] can be used to set the number of offset primes to be
+generated.
+example: ./mrprimes -O 50000
+This would make the program generate 50,000 offset primes during initialization.
+The default number of offsets primes generated is 10,000.
+
 Explanation of Offsets
 ----------------------
 
@@ -112,3 +118,6 @@ of adding back in this 7 when appropriate and dividing by 2. The formula is
 offset = (n mod 7 + ((n mod 7) mod 2) * 7) / 2
 or generally:
 offset = (n mod p + ((n mod p) mod 2) * p) / 2
+
+MRPrimes generates low offset primes by way of trial division before starting
+the threads that perform Miller-Rabin testing.
