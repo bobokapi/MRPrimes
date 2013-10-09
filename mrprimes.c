@@ -28,8 +28,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* Create boolean type. */
 enum boolean {FALSE, TRUE};
 /* Set constants. */
-enum constants {BASE = 10, NUM_OFFSETS = 1000, THREAD_STACKSIZE = 1024, NSECS_PER_SEC = 1000000000};
-static uint32_t offset_primes[NUM_OFFSETS];
+enum constants {BASE = 10, THREAD_STACKSIZE = 1024, NSECS_PER_SEC = 1000000000};
+static uint32_t *offset_primes = NULL; // to be initialized in main before threads are created
 
 #define VERSION_NUMBER_STRING "1.0.5"
 
@@ -38,6 +38,7 @@ struct thread_data_t
 {
 	const long num_digits;
 	const long precision;
+	const long num_offsets;
 	long current_num_primes;
 	char *out_file_name_pointer;
 	/* Two randstates are necessary when multithreading to ensure the same primes are found when the same seed is used. */
@@ -52,10 +53,10 @@ struct thread_data_t
 
 /* This function generates low odd primes for offsets at start of program run. */
 static void
-init_offsets ()
+init_offsets (const long num_offsets)
 {
 	uint32_t np = 0, n = 3; // number of primes, first odd prime
-	while (np < NUM_OFFSETS)
+	while (np < num_offsets)
 	{
 		enum boolean prime = TRUE;
 		for (int i = 0; i < np; ++i)
@@ -171,9 +172,9 @@ gen_start (mpz_t n, int num_digits, gmp_randstate_t random, pthread_mutex_t *ran
 
 /* This function initializes the offsets from the starting point (a random odd integer with the specified number of digits). */
 static void
-offset_init (const mpz_t start_point, int *offsets)
+offset_init (const mpz_t start_point, const long num_offsets, int *offsets)
 {
-	for (int i = 0; i < NUM_OFFSETS; ++i)
+	for (int i = 0; i < num_offsets; ++i)
 	{
 		/* First take the starting point mod each low prime, then use this value to find the offset. See readme for explanation. */
 		offsets[i] = (int)mpz_tdiv_ui (start_point, offset_primes[i]);
@@ -183,33 +184,33 @@ offset_init (const mpz_t start_point, int *offsets)
 
 /* This function updates the offsets after the test value has been incremented. */
 static void
-update_offsets (int *offsets)
+update_offsets (const long num_offsets, int *offsets)
 {
 	/* If the incremented offset is equal to the corresponding low prime, then it must be reset to 0. */
-	for (int i = 0; i < NUM_OFFSETS; ++i)
+	for (int i = 0; i < num_offsets; ++i)
 		if (++offsets[i] == offset_primes[i])
 			offsets[i] = 0;
 }
 
 /* This function, based on strlen, tests whether any of the offsets is equal to 0. */
 static enum boolean
-any_offset_equals_zero (const int *start_offset)
+any_offset_equals_zero (const long num_offsets, const int *start_offset)
 {
 	int *current_offset = (int *)start_offset;
 	while (*current_offset) // loop until the value of current_offset is zero
 		++current_offset;
-	/* (current_offset - start_offset) will equal NUM_OFFSETS if and only if none of the offsets equals 0. */
-	return ((current_offset - start_offset) != NUM_OFFSETS);
+	/* (current_offset - start_offset) will equal num_offsets if and only if none of the offsets equals 0. */
+	return ((current_offset - start_offset) != num_offsets);
 }
 
 /* This function finds the next odd number which should be tested. */
 static void
-next_test (mpz_t test_value, int *offsets)
+next_test (mpz_t test_value, const long num_offsets, int *offsets)
 {
-	while (any_offset_equals_zero (offsets))
+	while (any_offset_equals_zero (num_offsets, offsets))
 	{
 		mpz_add_ui (test_value, test_value, 2); // next odd integer
-		update_offsets (offsets);
+		update_offsets (num_offsets, offsets);
 	}
 }
 
@@ -225,23 +226,23 @@ find_prime (void *thread_args)
 	
 	/* Creating the offsets as an int array and storing a 0 at the end allows
 	for the use of the function to test if any offsets are equal to 0. */
-	int offsets[NUM_OFFSETS + 1];
-	offsets[NUM_OFFSETS] = 0;
+	int offsets[data->num_offsets + 1];
+	offsets[data->num_offsets] = 0;
 	
 	/* Generate random starting position for search from the set of odd integers with the specified number of digits. */
 	gen_start (test_value, data->num_digits, data->random1, &data->rand_state_mutex1);
 	
 	/* Keeping track of the offsets from odd integers divisible by low prime numbers allows for skipping the
 	testing of odd numbers divisible by these low primes.  See readme for explanation of this principle. */
-	offset_init (test_value, offsets);
-	next_test (test_value, offsets);
+	offset_init (test_value, data->num_offsets, offsets);
+	next_test (test_value, data->num_offsets, offsets);
 	probably_prime = miller_rabin (test_value, data->precision, data->random2, &data->rand_state_mutex2);
 	
 	while (!probably_prime)
 	{
 		mpz_add_ui (test_value, test_value, 2); // next odd integer
-		update_offsets (offsets);
-		next_test (test_value, offsets);
+		update_offsets (data->num_offsets, offsets);
+		next_test (test_value, data->num_offsets, offsets);
 		/* Moving the test to the end of the loop (which involves running the test once before the loop begins)
 		ensures that no part of the loop executes unnecessarily once a result of TRUE has already been returned. */
 		probably_prime = miller_rabin (test_value, data->precision, data->random2, &data->rand_state_mutex2);
@@ -304,6 +305,7 @@ main (int argc, char *argv[])
 	char *out_file_name_pointer = out_file_name; // output file name (-o)
 	long num_digits = 300; // number of digits of primes to generate (-d)
 	long num_primes = 10; // number of primes to generate (-n)
+	long num_offsets = 10000; // number of offset primes
 	int precision = 8; // rounds of Miller-Rabin test to perform (-p)
 	uint64_t seed = (uint64_t)time (NULL); // random seed (-s)
 	enum boolean append = FALSE; // whether the program should try to append output to an existing file (-a)
@@ -425,7 +427,8 @@ main (int argc, char *argv[])
 	}
 	
 	/* Initialize offset primes. */
-	init_offsets();
+	offset_primes = malloc (num_offsets * sizeof (uint32_t));
+	init_offsets (num_offsets);
 	
 	/* Delete contents of output file unless user specified otherwise. */
 	if (!append)
@@ -441,7 +444,7 @@ main (int argc, char *argv[])
 	pthread_attr_setstacksize (&attr, THREAD_STACKSIZE);
 	
 	/* Initialize thread arguments. */
-	struct thread_data_t thread_args = {num_digits, precision}; // num_digits and precision must be initialized immediately because they are const
+	struct thread_data_t thread_args = {num_digits, precision, num_offsets}; // num_digits, precision, num_offsets must be initialized immediately because they are const
 	thread_args.out_file_name_pointer = out_file_name_pointer;
 	gmp_randinit_mt (thread_args.random1);
 	gmp_randseed_ui (thread_args.random1, seed);
@@ -494,7 +497,8 @@ main (int argc, char *argv[])
 	}
 	printf ("Execution time: %ld seconds, %d nanoseconds.\n", end_ts.tv_sec - start_ts.tv_sec, nsec);
 	
-	/* Clear thread arguments and exit. */
+	/* Cleanup and exit. */
+	free (offset_primes);
 	gmp_randclear (thread_args.random1);
 	gmp_randclear (thread_args.random2);
 	pthread_mutex_destroy (&thread_args.out_file_mutex);
