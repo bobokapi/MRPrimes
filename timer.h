@@ -29,36 +29,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 	static struct timeval tv[2];
 #endif
 
-/* initial state */
-char state = -1;
+/* Keep track of which of the two structs is from the last function call. */
+char state = -1; // -1 = first run state
 
+/* This function gets the current time, and returns the difference from the last call. */
 static double
 timer ()
 {
-	double dtime;
-	if (state == -1)
-	{
-		#ifdef CLOCK_MONOTONIC
-			clock_gettime (CLOCK_MONOTONIC, &ts[0]);
-		#else
-			gettimeofday (&tv[0], NULL);
-		#endif
-		++state;
-		dtime = 0.0; // first run
-	}
-	else
-	{
-		#ifdef CLOCK_MONOTONIC
-			clock_gettime (CLOCK_MONOTONIC, &ts[!state]);
+	double dtime = 0.0;
+	#ifdef CLOCK_MONOTONIC
+		clock_gettime (CLOCK_MONOTONIC, &ts[!state]);
+		if (state != -1)
+		{
 			dtime = ts[!state].tv_sec + ts[!state].tv_nsec * 1e-9;
 			dtime -= ts[state].tv_sec + ts[state].tv_nsec * 1e-9;
-		#else
-			gettimeofday (&tv[!state], NULL);
+		}
+	#else
+		gettimeofday (&tv[!state], NULL);
+		if (state != -1)
+		{
 			dtime = tv[!state].tv_sec + tv[!state].tv_usec * 1e-6;
 			dtime -= tv[state].tv_sec + tv[state].tv_usec * 1e-6;
-		#endif
-		
-		state = (state + 1) % 2;
-	}
+		}
+	#endif
+	state = !state; // -1,+1 -> 0; 0 -> +1
 	return dtime;
 }
