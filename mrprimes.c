@@ -1,7 +1,7 @@
 /*
 MRPrimes - a program to generate large prime numbers using the Miller-Rabin probabalistic
 primality test implemented with the GNU Multiple Precision math library and POSIX threads.
-Copyright 2012, 2013 Evan Brown
+Copyright (C) 2012, 2013 Evan Brown
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -20,18 +20,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <time.h>
 #include <string.h>
 #include <pthread.h>
 #include "gmp.h"
+#include "timer.h"
 
 /* Create boolean type. */
 enum boolean {FALSE, TRUE};
 /* Set constants. */
-enum constants {BASE = 10, THREAD_STACKSIZE = 1024, NSECS_PER_SEC = 1000000000};
+enum constants {BASE = 10, THREAD_STACKSIZE = 1024};
 static uint32_t *offset_primes = NULL; // to be initialized in main before threads are created
 
-#define VERSION_NUMBER_STRING "1.0.6"
+#define VERSION_NUMBER_STRING "1.0.7"
 
 /* The following structure contains the necessary arguments to allow the threads to perform their function. */
 struct thread_data_t
@@ -445,6 +445,9 @@ main (int argc, char *argv[])
 		}
 	}
 	
+	/* Get start time. */
+	timer ();
+	
 	/* Initialize offset primes. */
 	offset_primes = malloc (num_offsets * sizeof (uint32_t));
 	init_offsets (num_offsets);
@@ -475,9 +478,11 @@ main (int argc, char *argv[])
 	pthread_mutex_init (&thread_args.rand_state_mutex1, NULL);
 	pthread_mutex_init (&thread_args.rand_state_mutex2, NULL);
 	
-	/* Initialize timespecs and get start time. */
-	struct timespec start_ts, end_ts;
-	clock_gettime (CLOCK_MONOTONIC, &start_ts);
+	/* Print initialization time. */
+	if (CLOCK_PRECISION == 9)
+		printf ("Initialization time: %.9lf seconds.\n", timer ());
+	else
+		printf ("Initialization time: %.6lf seconds.\n", timer ());
 	
 	/* Create one thread to find each prime. */
 	pthread_t threads[num_primes];
@@ -505,16 +510,10 @@ main (int argc, char *argv[])
 	}
 	
 	/* Get end time and print time taken. */
-	clock_gettime (CLOCK_MONOTONIC, &end_ts);
-	int nsec;
-	if (end_ts.tv_nsec > start_ts.tv_nsec)
-		nsec = (int)(end_ts.tv_nsec - start_ts.tv_nsec);
+	if (CLOCK_PRECISION == 9)
+		printf ("Execution time: %.9lf seconds.\n", timer ());
 	else
-	{
-		nsec = (int)(NSECS_PER_SEC + end_ts.tv_nsec - start_ts.tv_nsec);
-		--end_ts.tv_sec;
-	}
-	printf ("Execution time: %ld seconds, %d nanoseconds.\n", end_ts.tv_sec - start_ts.tv_sec, nsec);
+		printf ("Execution time: %.6lf seconds.\n", timer ());
 	
 	/* Cleanup and exit. */
 	free (offset_primes);
